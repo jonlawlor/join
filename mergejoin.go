@@ -2,8 +2,6 @@
 
 package join
 
-// implementation without concurrency, where everything is already in mem
-
 // TupComp represents 3 valued comparison between two tuples.  It can either be
 // LT (which means that the left tuple is less than the right), EQ (which means
 // that they are equal), or GT (which means that the left tuple is greater than
