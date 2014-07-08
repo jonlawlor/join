@@ -28,9 +28,8 @@ type MergeJoiner interface {
 
 // Join is an implementation of merge join
 func Join(e MergeJoiner) {
-	// construct the block size channels
-
-	// unbuffered, because we don't want the producer to overwrite shared memory
+  // Construct the block size channels.  They are unbuffered, so that the block
+	// producer can determine when join is finished reading from the blocks.
 	lSize := make(chan int, 0)
 	rSize := make(chan int, 0)
 
