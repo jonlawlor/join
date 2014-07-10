@@ -76,18 +76,13 @@ func Join(e MergeJoiner) {
 			}
 		case EQ:
 
-			// we've already compared 0,0, so combine it
-			combine(0, 0)
-
-			// go through the remainder of i = 0
-			for j := 1; j < rSz; j++ {
-				combine(0, j)
-			}
-			for i := 1; i < lSz; i++ {
+			// combine the results
+			for i := 0; i < lSz; i++ {
 				for j := 0; j < rSz; j++ {
 					combine(i, j)
 				}
 			}
+			
 			// now advance the left relation
 			updateLeft <- struct{}{}
 			lSz, ok = <-lSize
