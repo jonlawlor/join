@@ -59,6 +59,7 @@ func Join(e MergeJoiner) {
 			if !ok {
 				// close the other sync channels
 				close(updateRight)
+				close(updateLeft)
 				close(done)
 				return
 			}
@@ -68,6 +69,7 @@ func Join(e MergeJoiner) {
 			rSz, ok = <-rSize
 			if !ok {
 				// close the other sync channels
+				close(updateRight)
 				close(updateLeft)
 				close(done)
 				return
