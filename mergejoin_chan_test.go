@@ -197,27 +197,59 @@ func TestChanMergeJoin(t *testing.T) {
 			t.Errorf("Join() result %d tuple => %v, want %v", i, resTable[i], expectTable[i])
 		}
 	}
+
+	// test the various record counts used in the benchmarks
+	var TT = []struct{
+		j *joinExprChan
+		N int} {
+		{makeMergeJoinChan(10, 10, 3, 10, 10, 3),19},
+		{makeMergeJoinChan(32, 32, 9, 32, 32, 9),30},
+		{makeMergeJoinChan(100, 100, 30, 100, 100, 30),90},
+		{makeMergeJoinChan(316, 316, 90, 316, 316, 90),291},
+		{makeMergeJoinChan(1000, 1000, 300, 1000, 1000, 300),1105},
+		{makeMergeJoinChan(3162, 3162, 900, 3162, 3162, 900),3247},
+		{makeMergeJoinChan(10000, 10000, 3000, 10000, 10000, 3000),9880},
+	}
+	for i, tt := range(TT) {
+		if l := CountResChan(tt.j.res); l != tt.N {
+			t.Errorf("%d Table length was => %d, want %d", i, l, tt.N)
+		}
+	}
 }
 
-func BenchmarkMergeJoinChan10x10(b *testing.B) { // as many as 1e2
+
+// create a merge join for testing
+func makeMergeJoinChan(leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) *joinExprChan {
+	l := makeFooBar(leftN, leftFoo, leftBar)
+	r := makeBarBaz(rightN, rightBar, rightBaz)
+	sort.Sort(fooBarByBar(l))
+	sort.Sort(barBazByBar(r))
+	j := &joinExprChan{left: fooBarChan(l, 1), right: barBazChan(r, 1), res: make(chan fooBarBaz, 1)}
+	go Join(j)
+	return j
+}
+
+
+
+func BenchmarkMergeJoinChan10x10(b *testing.B) { // 19 results
 	runMergeJoinChanBenchmark(b, 10, 10, 3, 10, 10, 3)
 }
-func BenchmarkMergeJoinChan32x32(b *testing.B) { // as many as 1e3
+func BenchmarkMergeJoinChan32x32(b *testing.B) { // 30 results
 	runMergeJoinChanBenchmark(b, 32, 32, 9, 32, 32, 9)
 }
-func BenchmarkMergeJoinChan100x100(b *testing.B) { // as many as 1e4
+func BenchmarkMergeJoinChan100x100(b *testing.B) { // 90 results
 	runMergeJoinChanBenchmark(b, 100, 100, 30, 100, 100, 30)
 }
-func BenchmarkMergeJoinChan316x316(b *testing.B) { // as many as 1e5
+func BenchmarkMergeJoinChan316x316(b *testing.B) { // 291 results
 	runMergeJoinChanBenchmark(b, 316, 316, 90, 316, 316, 90)
 }
-func BenchmarkMergeJoinChan1000x1000(b *testing.B) { // as many as 1e6
+func BenchmarkMergeJoinChan1000x1000(b *testing.B) { // 1105 results
 	runMergeJoinChanBenchmark(b, 1000, 1000, 300, 1000, 1000, 300)
 }
-func BenchmarkMergeJoinChan3162x3162(b *testing.B) { // as many as 1e7
+func BenchmarkMergeJoinChan3162x3162(b *testing.B) { // 3247 results
 	runMergeJoinChanBenchmark(b, 3162, 3162, 900, 3162, 3162, 900)
 }
-func BenchmarkMergeJoinChan10000x10000(b *testing.B) { // as many as 1e8
+func BenchmarkMergeJoinChan10000x10000(b *testing.B) { // as many as 9880 results
 	runMergeJoinChanBenchmark(b, 10000, 10000, 3000, 10000, 10000, 3000)
 }
 
@@ -225,6 +257,14 @@ func EmptyResChan(res chan fooBarBaz) {
 	for _ = range res {
 	}
 }
+
+func CountResChan(res chan fooBarBaz) (i int) {
+	for _ = range res {
+		i++
+	}
+	return
+}
+
 
 func runMergeJoinChanBenchmark(b *testing.B, leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) {
 	l := makeFooBar(leftN, leftFoo, leftBar)

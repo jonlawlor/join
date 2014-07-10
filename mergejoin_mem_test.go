@@ -174,24 +174,55 @@ func TestMemMergeJoin(t *testing.T) {
 			t.Errorf("Join() result %d tuple => %v, want %v", i, e.res[i], expectTable[i])
 		}
 	}
+
+  // test the various record counts used in the benchmarks
+  var TT = []struct{
+    j *joinExprSlice
+    N int} {
+    {makeMergeJoinMem(10, 10, 3, 10, 10, 3),19},
+    {makeMergeJoinMem(32, 32, 9, 32, 32, 9),30},
+    {makeMergeJoinMem(100, 100, 30, 100, 100, 30),90},
+    {makeMergeJoinMem(316, 316, 90, 316, 316, 90),291},
+    {makeMergeJoinMem(1000, 1000, 300, 1000, 1000, 300),1105},
+    {makeMergeJoinMem(3162, 3162, 900, 3162, 3162, 900),3247},
+    {makeMergeJoinMem(10000, 10000, 3000, 10000, 10000, 3000),9880},
+  }
+  for i, tt := range(TT) {
+    if l := len(tt.j.res); l != tt.N {
+      t.Errorf("%d Table length was => %d, want %d", i, l, tt.N)
+    }
+  }
 }
 
-func BenchmarkMergeJoinMem10x10(b *testing.B) { // as many as 1e2
+
+
+// create a merge join for testing
+func makeMergeJoinMem(leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) *joinExprSlice {
+  l := makeFooBar(leftN, leftFoo, leftBar)
+  r := makeBarBaz(rightN, rightBar, rightBaz)
+  sort.Sort(fooBarByBar(l))
+  sort.Sort(barBazByBar(r))
+  j := &joinExprSlice{left: l, right: r}
+  Join(j)
+  return j
+}
+
+func BenchmarkMergeJoinMem10x10(b *testing.B) { // 19 results
 	runMergeJoinMemBenchmark(b, 10, 10, 3, 10, 10, 3)
 }
-func BenchmarkMergeJoinMem32x32(b *testing.B) { // as many as 1e3
+func BenchmarkMergeJoinMem32x32(b *testing.B) { // 30 results
 	runMergeJoinMemBenchmark(b, 32, 32, 9, 32, 32, 9)
 }
-func BenchmarkMergeJoinMem100x100(b *testing.B) { // as many as 1e4
+func BenchmarkMergeJoinMem100x100(b *testing.B) { // 90 results
 	runMergeJoinMemBenchmark(b, 100, 100, 30, 100, 100, 30)
 }
-func BenchmarkMergeJoinMem316x316(b *testing.B) { // as many as 1e5
+func BenchmarkMergeJoinMem316x316(b *testing.B) { // 291 results
 	runMergeJoinMemBenchmark(b, 316, 316, 90, 316, 316, 90)
 }
-func BenchmarkMergeJoinMem1000x1000(b *testing.B) { // as many as 1e6
+func BenchmarkMergeJoinMem1000x1000(b *testing.B) { // 1105 results
 	runMergeJoinMemBenchmark(b, 1000, 1000, 300, 1000, 1000, 300)
 }
-func BenchmarkMergeJoinMem3162x3162(b *testing.B) { // as many as 1e7
+func BenchmarkMergeJoinMem3162x3162(b *testing.B) { // 9880 results
 	runMergeJoinMemBenchmark(b, 3162, 3162, 900, 3162, 3162, 900)
 }
 func BenchmarkMergeJoinMem10000x10000(b *testing.B) { // as many as 1e8
@@ -220,6 +251,7 @@ func BenchmarkMergeJoinMemUnsorted10000x10000(b *testing.B) { // as many as 1e8
 	runMergeJoinMemUnsortedBenchmark(b, 10000, 10000, 3000, 10000, 10000, 3000)
 }
 
+// in this case, the sorting time is not included
 func runMergeJoinMemBenchmark(b *testing.B, leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) {
 	l := makeFooBar(leftN, leftFoo, leftBar)
 	r := makeBarBaz(rightN, rightBar, rightBaz)
@@ -234,6 +266,7 @@ func runMergeJoinMemBenchmark(b *testing.B, leftN, leftFoo, leftBar, rightN, rig
 	}
 }
 
+// in this case, the sorting time is included
 func runMergeJoinMemUnsortedBenchmark(b *testing.B, leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) {
 	l := makeFooBar(leftN, leftFoo, leftBar)
 	r := makeBarBaz(rightN, rightBar, rightBaz)
