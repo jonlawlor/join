@@ -51,6 +51,7 @@ func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight,
 			select {
 			case lSize <- sz:
 				sz = 1
+				// clear the memory
 				recs = []fooBar{rec}
 			case <-done:
 				// early cancellation
@@ -109,6 +110,7 @@ func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight,
 			select {
 			case rSize <- sz:
 				sz = 1
+				// clear the memory
 				recs = []barBaz{rec}
 			case <-done:
 				// early cancellation
