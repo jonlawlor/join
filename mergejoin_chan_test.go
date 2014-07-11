@@ -18,7 +18,7 @@ type joinExprChan struct {
 
 // test implementation of MergeJoin for the foo,bar * bar, baz -> foo, bar, baz
 // join.
-func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight, done chan struct{}) (compare func(i, j int) TupComp, combine func(i, j int)) {
+func (e *joinExprChan) MergeJoin(lSize, rSize chan int, advanceLeft, advanceRight, done chan struct{}) (compare func() TupComp, combine func(i, j int)) {
 	var (
 		leftBlock  []fooBar
 		rightBlock []barBaz
@@ -43,7 +43,7 @@ func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight,
 				continue
 			}
 			// wait to be told to update the slices
-			<-updateLeft
+			<-advanceLeft
 
 			// update the left slice
 			leftBlock = recs
@@ -62,7 +62,7 @@ func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight,
 		// send the last block
 
 		// wait to be told to update the slices
-		<-updateLeft
+		<-advanceLeft
 		// update the left slice
 		leftBlock = recs
 		// send the new size and then reset
@@ -73,9 +73,9 @@ func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight,
 			// early cancellation
 			return
 		}
-		<-updateLeft
+		<-advanceLeft
 		close(lSize)
-		<-updateRight
+		<-advanceRight
 		close(e.res)
 
 	}()
@@ -102,7 +102,7 @@ func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight,
 			}
 
 			// wait to be told to update the slices
-			<-updateRight
+			<-advanceRight
 
 			// update the left slice
 			rightBlock = recs
@@ -121,7 +121,7 @@ func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight,
 		// send the last block
 
 		// wait to be told to update the slices
-		<-updateRight
+		<-advanceRight
 		// update the left slice
 		rightBlock = recs
 		// send the new size and then reset
@@ -132,16 +132,16 @@ func (e *joinExprChan) MergeJoin(lSize, rSize chan int, updateLeft, updateRight,
 			// early cancellation
 			return
 		}
-		<-updateRight
+		<-advanceRight
 		close(rSize)
 	}()
 
-	compare = func(i, j int) TupComp {
+	compare = func() TupComp {
 
-		if leftBlock[i].bar == rightBlock[j].bar {
+		if leftBlock[0].bar == rightBlock[0].bar {
 			return EQ
 		}
-		if leftBlock[i].bar < rightBlock[j].bar {
+		if leftBlock[0].bar < rightBlock[0].bar {
 			return LT
 		}
 		return GT

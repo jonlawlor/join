@@ -18,7 +18,7 @@ type joinExprSlice struct {
 
 // test implementation of MergeJoin for the foo,bar * bar, baz -> foo, bar, baz
 // join.
-func (e *joinExprSlice) MergeJoin(lSize, rSize chan int, updateLeft, updateRight, done chan struct{}) (compare func(i, j int) TupComp, combine func(i, j int)) {
+func (e *joinExprSlice) MergeJoin(lSize, rSize chan int, advanceLeft, advanceRight, done chan struct{}) (compare func() TupComp, combine func(i, j int)) {
 	if len(e.left) == 0 || len(e.right) == 0 {
 		// zero join
 		close(lSize)
@@ -44,7 +44,7 @@ func (e *joinExprSlice) MergeJoin(lSize, rSize chan int, updateLeft, updateRight
 
 			// wait to be told to update the slices
 
-			<-updateLeft
+			<-advanceLeft
 			// update the left slice
 			leftBlock = e.left[start:i]
 			// send the new size and then reset
@@ -61,7 +61,7 @@ func (e *joinExprSlice) MergeJoin(lSize, rSize chan int, updateLeft, updateRight
 		// send the last block
 
 		// wait to be told to update the slices
-		<-updateLeft
+		<-advanceLeft
 		// update the left slice
 		leftBlock = e.left[start:]
 		// send the new size and then reset
@@ -71,7 +71,7 @@ func (e *joinExprSlice) MergeJoin(lSize, rSize chan int, updateLeft, updateRight
 			// early cancellation
 			return
 		}
-		<-updateLeft
+		<-advanceLeft
 		close(lSize)
 	}()
 
@@ -88,7 +88,7 @@ func (e *joinExprSlice) MergeJoin(lSize, rSize chan int, updateLeft, updateRight
 			}
 
 			// wait to be told to update the slices
-			<-updateRight
+			<-advanceRight
 			// update the left slice
 			rightBlock = e.right[start:i]
 			// send the new size and then reset
@@ -105,7 +105,7 @@ func (e *joinExprSlice) MergeJoin(lSize, rSize chan int, updateLeft, updateRight
 
 		// send the last block
 		// wait to be told to update the slices
-		<-updateRight
+		<-advanceRight
 		// update the left slice
 		rightBlock = e.right[start:]
 		// send the new size and then reset
@@ -115,16 +115,16 @@ func (e *joinExprSlice) MergeJoin(lSize, rSize chan int, updateLeft, updateRight
 			// early cancellation
 			return
 		}
-		<-updateRight
+		<-advanceRight
 		close(rSize)
 	}()
 
-	compare = func(i, j int) TupComp {
+	compare = func() TupComp {
 
-		if leftBlock[i].bar == rightBlock[j].bar {
+		if leftBlock[0].bar == rightBlock[0].bar {
 			return EQ
 		}
-		if leftBlock[i].bar < rightBlock[j].bar {
+		if leftBlock[0].bar < rightBlock[0].bar {
 			return LT
 		}
 		return GT
