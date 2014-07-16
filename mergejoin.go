@@ -1,7 +1,6 @@
 // mergejoin contains implementations of a merge-join in Go
 
-package join
-
+package relpipes
 
 // TupComp represents 3 valued comparison between two tuples.  It can either be
 // LT (which means that the left tuple is less than the right), EQ (which means

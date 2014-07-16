@@ -1,7 +1,7 @@
 // mergejoin_mem_test contains tests for merge join when the data structures are
 // all held in memory.
 
-package join
+package relpipes
 
 import (
 	"sort"
@@ -175,36 +175,35 @@ func TestMemMergeJoin(t *testing.T) {
 		}
 	}
 
-  // test the various record counts used in the benchmarks
-  var TT = []struct{
-    j *joinExprSlice
-    N int} {
-    {makeMergeJoinMem(10, 10, 3, 10, 10, 3),19},
-    {makeMergeJoinMem(32, 32, 9, 32, 32, 9),30},
-    {makeMergeJoinMem(100, 100, 30, 100, 100, 30),90},
-    {makeMergeJoinMem(316, 316, 90, 316, 316, 90),291},
-    {makeMergeJoinMem(1000, 1000, 300, 1000, 1000, 300),1105},
-    {makeMergeJoinMem(3162, 3162, 900, 3162, 3162, 900),3247},
-    {makeMergeJoinMem(10000, 10000, 3000, 10000, 10000, 3000),9880},
-  }
-  for i, tt := range(TT) {
-    if l := len(tt.j.res); l != tt.N {
-      t.Errorf("%d Table length was => %d, want %d", i, l, tt.N)
-    }
-  }
+	// test the various record counts used in the benchmarks
+	var TT = []struct {
+		j *joinExprSlice
+		N int
+	}{
+		{makeMergeJoinMem(10, 10, 3, 10, 10, 3), 19},
+		{makeMergeJoinMem(32, 32, 9, 32, 32, 9), 30},
+		{makeMergeJoinMem(100, 100, 30, 100, 100, 30), 90},
+		{makeMergeJoinMem(316, 316, 90, 316, 316, 90), 291},
+		{makeMergeJoinMem(1000, 1000, 300, 1000, 1000, 300), 1105},
+		{makeMergeJoinMem(3162, 3162, 900, 3162, 3162, 900), 3247},
+		{makeMergeJoinMem(10000, 10000, 3000, 10000, 10000, 3000), 9880},
+	}
+	for i, tt := range TT {
+		if l := len(tt.j.res); l != tt.N {
+			t.Errorf("%d Table length was => %d, want %d", i, l, tt.N)
+		}
+	}
 }
-
-
 
 // create a merge join for testing
 func makeMergeJoinMem(leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) *joinExprSlice {
-  l := makeFooBar(leftN, leftFoo, leftBar)
-  r := makeBarBaz(rightN, rightBar, rightBaz)
-  sort.Sort(fooBarByBar(l))
-  sort.Sort(barBazByBar(r))
-  j := &joinExprSlice{left: l, right: r}
-  Join(j)
-  return j
+	l := makeFooBar(leftN, leftFoo, leftBar)
+	r := makeBarBaz(rightN, rightBar, rightBaz)
+	sort.Sort(fooBarByBar(l))
+	sort.Sort(barBazByBar(r))
+	j := &joinExprSlice{left: l, right: r}
+	Join(j)
+	return j
 }
 
 func BenchmarkMergeJoinMem10x10(b *testing.B) { // 19 results

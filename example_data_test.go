@@ -1,6 +1,6 @@
 // some functions to create example data
 
-package join
+package relpipes
 
 import "math/rand"
 

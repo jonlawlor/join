@@ -1,7 +1,7 @@
 // mergejoin_mem_test contains tests for merge join when the data structures are
 // all held in memory.
 
-package join
+package relpipes
 
 import (
 	"sort"
@@ -201,24 +201,24 @@ func TestChanMergeJoin(t *testing.T) {
 	}
 
 	// test the various record counts used in the benchmarks
-	var TT = []struct{
+	var TT = []struct {
 		j *joinExprChan
-		N int} {
-		{makeMergeJoinChan(10, 10, 3, 10, 10, 3),19},
-		{makeMergeJoinChan(32, 32, 9, 32, 32, 9),30},
-		{makeMergeJoinChan(100, 100, 30, 100, 100, 30),90},
-		{makeMergeJoinChan(316, 316, 90, 316, 316, 90),291},
-		{makeMergeJoinChan(1000, 1000, 300, 1000, 1000, 300),1105},
-		{makeMergeJoinChan(3162, 3162, 900, 3162, 3162, 900),3247},
-		{makeMergeJoinChan(10000, 10000, 3000, 10000, 10000, 3000),9880},
+		N int
+	}{
+		{makeMergeJoinChan(10, 10, 3, 10, 10, 3), 19},
+		{makeMergeJoinChan(32, 32, 9, 32, 32, 9), 30},
+		{makeMergeJoinChan(100, 100, 30, 100, 100, 30), 90},
+		{makeMergeJoinChan(316, 316, 90, 316, 316, 90), 291},
+		{makeMergeJoinChan(1000, 1000, 300, 1000, 1000, 300), 1105},
+		{makeMergeJoinChan(3162, 3162, 900, 3162, 3162, 900), 3247},
+		{makeMergeJoinChan(10000, 10000, 3000, 10000, 10000, 3000), 9880},
 	}
-	for i, tt := range(TT) {
+	for i, tt := range TT {
 		if l := CountResChan(tt.j.res); l != tt.N {
 			t.Errorf("%d Table length was => %d, want %d", i, l, tt.N)
 		}
 	}
 }
-
 
 // create a merge join for testing
 func makeMergeJoinChan(leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) *joinExprChan {
@@ -230,8 +230,6 @@ func makeMergeJoinChan(leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) 
 	go Join(j)
 	return j
 }
-
-
 
 func BenchmarkMergeJoinChan10x10(b *testing.B) { // 19 results
 	runMergeJoinChanBenchmark(b, 10, 10, 3, 10, 10, 3)
@@ -266,7 +264,6 @@ func CountResChan(res chan fooBarBaz) (i int) {
 	}
 	return
 }
-
 
 func runMergeJoinChanBenchmark(b *testing.B, leftN, leftFoo, leftBar, rightN, rightBar, rightBaz int) {
 	l := makeFooBar(leftN, leftFoo, leftBar)
