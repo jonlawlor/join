@@ -1,4 +1,4 @@
-join
+relpipes
 ====
 
-Implementation of various join implementations in (an attempt at) idiomatic Go
+A set of implementations and tests to go along with my blog, jonlawlor.github.io.
