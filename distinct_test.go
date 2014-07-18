@@ -1,6 +1,11 @@
 package relpipes
 
-import "sync"
+import (
+	"runtime"
+	"sort"
+	"sync"
+	"testing"
+)
 
 // a set of tests and benchmarks for some implementations of distinct
 
@@ -31,6 +36,87 @@ func distinct(in <-chan fooBar, res chan<- fooBar) {
 		close(res)
 	}()
 	return
+}
+
+func emptyFooBar(ch chan fooBar) {
+	for _ = range ch {
+		// do nothing, just recv
+	}
+}
+
+func benchDistinct(b *testing.B, tupN, fooN, barN int) {
+	in := makeFooBar(tupN, fooN, barN)
+	b.StopTimer()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := make(chan fooBar, 1)
+
+		b.StartTimer()
+		distinct(fooBarChan(in, 1), res)
+
+		emptyFooBar(res)
+		b.StopTimer()
+	}
+}
+
+// benchmarks for distinct with cardinality ~3
+func BenchmarkDistinct_10_3_1(b *testing.B) {
+	benchDistinct(b, 10, 3, 1)
+}
+func BenchmarkDistinct_100_3_1(b *testing.B) {
+	benchDistinct(b, 100, 3, 1)
+}
+func BenchmarkDistinct_1000_3_1(b *testing.B) {
+	benchDistinct(b, 1000, 3, 1)
+}
+func BenchmarkDistinct_10000_3_1(b *testing.B) {
+	benchDistinct(b, 10000, 3, 1)
+}
+func BenchmarkDistinct_100000_3_1(b *testing.B) {
+	benchDistinct(b, 100000, 3, 1)
+}
+func BenchmarkDistinct_1000000_3_1(b *testing.B) {
+	benchDistinct(b, 1000000, 3, 1)
+}
+
+// benchmarks for distinct with cardinality ~1000
+func BenchmarkDistinct_10_1000_1(b *testing.B) {
+	benchDistinct(b, 10, 1000, 1)
+}
+func BenchmarkDistinct_100_1000_1(b *testing.B) {
+	benchDistinct(b, 100, 1000, 1)
+}
+func BenchmarkDistinct_1000_1000_1(b *testing.B) {
+	benchDistinct(b, 1000, 1000, 1)
+}
+func BenchmarkDistinct_10000_1000_1(b *testing.B) {
+	benchDistinct(b, 10000, 1000, 1)
+}
+func BenchmarkDistinct_100000_1000_1(b *testing.B) {
+	benchDistinct(b, 100000, 1000, 1)
+}
+func BenchmarkDistinct_1000000_1000_1(b *testing.B) {
+	benchDistinct(b, 1000000, 1000, 1)
+}
+
+// benchmarks for distinct with cardinality ~100000
+func BenchmarkDistinct_10_100000_1(b *testing.B) {
+	benchDistinct(b, 10, 100000, 1)
+}
+func BenchmarkDistinct_100_100000_1(b *testing.B) {
+	benchDistinct(b, 100, 100000, 1)
+}
+func BenchmarkDistinct_1000_100000_1(b *testing.B) {
+	benchDistinct(b, 1000, 100000, 1)
+}
+func BenchmarkDistinct_10000_100000_1(b *testing.B) {
+	benchDistinct(b, 10000, 100000, 1)
+}
+func BenchmarkDistinct_100000_100000_1(b *testing.B) {
+	benchDistinct(b, 100000, 100000, 1)
+}
+func BenchmarkDistinct_1000000_100000_1(b *testing.B) {
+	benchDistinct(b, 1000000, 100000, 1)
 }
 
 // concurrent (unordered) version
@@ -85,6 +171,83 @@ func distinctParallel(in <-chan fooBar, res chan<- fooBar, n int) {
 	return
 }
 
+func benchDistinctParallel(b *testing.B, tupN, fooN, barN int) {
+	mc := runtime.GOMAXPROCS(2)
+	in := makeFooBar(tupN, fooN, barN)
+	b.StopTimer()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := make(chan fooBar, 1)
+
+		b.StartTimer()
+		distinctParallel(fooBarChan(in, 1), res, 2)
+
+		emptyFooBar(res)
+		b.StopTimer()
+	}
+	runtime.GOMAXPROCS(mc)
+}
+
+// benchmarks for distinct with cardinality ~3
+func BenchmarkDistinctParallel_10_3_1(b *testing.B) {
+	benchDistinctParallel(b, 10, 3, 1)
+}
+func BenchmarkDistinctParallel_100_3_1(b *testing.B) {
+	benchDistinctParallel(b, 100, 3, 1)
+}
+func BenchmarkDistinctParallel_1000_3_1(b *testing.B) {
+	benchDistinctParallel(b, 1000, 3, 1)
+}
+func BenchmarkDistinctParallel_10000_3_1(b *testing.B) {
+	benchDistinctParallel(b, 10000, 3, 1)
+}
+func BenchmarkDistinctParallel_100000_3_1(b *testing.B) {
+	benchDistinctParallel(b, 100000, 3, 1)
+}
+func BenchmarkDistinctParallel_1000000_3_1(b *testing.B) {
+	benchDistinctParallel(b, 1000000, 3, 1)
+}
+
+// benchmarks for distinct with cardinality ~1000
+func BenchmarkDistinctParallel_10_1000_1(b *testing.B) {
+	benchDistinctParallel(b, 10, 1000, 1)
+}
+func BenchmarkDistinctParallel_100_1000_1(b *testing.B) {
+	benchDistinctParallel(b, 100, 1000, 1)
+}
+func BenchmarkDistinctParallel_1000_1000_1(b *testing.B) {
+	benchDistinctParallel(b, 1000, 1000, 1)
+}
+func BenchmarkDistinctParallel_10000_1000_1(b *testing.B) {
+	benchDistinctParallel(b, 10000, 1000, 1)
+}
+func BenchmarkDistinctParallel_100000_1000_1(b *testing.B) {
+	benchDistinctParallel(b, 100000, 1000, 1)
+}
+func BenchmarkDistinctParallel_1000000_1000_1(b *testing.B) {
+	benchDistinctParallel(b, 1000000, 1000, 1)
+}
+
+// benchmarks for distinct with cardinality ~100000
+func BenchmarkDistinctParallel_10_100000_1(b *testing.B) {
+	benchDistinctParallel(b, 10, 100000, 1)
+}
+func BenchmarkDistinctParallel_100_100000_1(b *testing.B) {
+	benchDistinctParallel(b, 100, 100000, 1)
+}
+func BenchmarkDistinctParallel_1000_100000_1(b *testing.B) {
+	benchDistinctParallel(b, 1000, 100000, 1)
+}
+func BenchmarkDistinctParallel_10000_100000_1(b *testing.B) {
+	benchDistinctParallel(b, 10000, 100000, 1)
+}
+func BenchmarkDistinctParallel_100000_100000_1(b *testing.B) {
+	benchDistinctParallel(b, 100000, 100000, 1)
+}
+func BenchmarkDistinctParallel_1000000_100000_1(b *testing.B) {
+	benchDistinctParallel(b, 1000000, 100000, 1)
+}
+
 // ordered version
 
 // distinctOrdered takes two channels, one for input and one for
@@ -110,4 +273,82 @@ func distinctOrdered(in <-chan fooBar, res chan<- fooBar) {
 		close(res)
 	}()
 	return
+}
+
+// benchmarks
+
+func benchDistinctOrdered(b *testing.B, tupN, fooN, barN int) {
+	in := makeFooBar(tupN, fooN, barN)
+	sort.Sort(fooBarByBar(in))
+	b.StopTimer()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := make(chan fooBar, 1)
+
+		b.StartTimer()
+		distinctOrdered(fooBarChan(in, 1), res)
+
+		emptyFooBar(res)
+		b.StopTimer()
+	}
+}
+
+// benchmarks for distinct with cardinality ~3
+func BenchmarkDistinctOrdered_10_3_1(b *testing.B) {
+	benchDistinctOrdered(b, 10, 3, 1)
+}
+func BenchmarkDistinctOrdered_100_3_1(b *testing.B) {
+	benchDistinctOrdered(b, 100, 3, 1)
+}
+func BenchmarkDistinctOrdered_1000_3_1(b *testing.B) {
+	benchDistinctOrdered(b, 1000, 3, 1)
+}
+func BenchmarkDistinctOrdered_10000_3_1(b *testing.B) {
+	benchDistinctOrdered(b, 10000, 3, 1)
+}
+func BenchmarkDistinctOrdered_100000_3_1(b *testing.B) {
+	benchDistinctOrdered(b, 100000, 3, 1)
+}
+func BenchmarkDistinctOrdered_1000000_3_1(b *testing.B) {
+	benchDistinctOrdered(b, 1000000, 3, 1)
+}
+
+// benchmarks for distinct with cardinality ~1000
+func BenchmarkDistinctOrdered_10_1000_1(b *testing.B) {
+	benchDistinctOrdered(b, 10, 1000, 1)
+}
+func BenchmarkDistinctOrdered_100_1000_1(b *testing.B) {
+	benchDistinctOrdered(b, 100, 1000, 1)
+}
+func BenchmarkDistinctOrdered_1000_1000_1(b *testing.B) {
+	benchDistinctOrdered(b, 1000, 1000, 1)
+}
+func BenchmarkDistinctOrdered_10000_1000_1(b *testing.B) {
+	benchDistinctOrdered(b, 10000, 1000, 1)
+}
+func BenchmarkDistinctOrdered_100000_1000_1(b *testing.B) {
+	benchDistinctOrdered(b, 100000, 1000, 1)
+}
+func BenchmarkDistinctOrdered_1000000_1000_1(b *testing.B) {
+	benchDistinctOrdered(b, 1000000, 1000, 1)
+}
+
+// benchmarks for distinct with cardinality ~100000
+func BenchmarkDistinctOrdered_10_100000_1(b *testing.B) {
+	benchDistinctOrdered(b, 10, 100000, 1)
+}
+func BenchmarkDistinctOrdered_100_100000_1(b *testing.B) {
+	benchDistinctOrdered(b, 100, 100000, 1)
+}
+func BenchmarkDistinctOrdered_1000_100000_1(b *testing.B) {
+	benchDistinctOrdered(b, 1000, 100000, 1)
+}
+func BenchmarkDistinctOrdered_10000_100000_1(b *testing.B) {
+	benchDistinctOrdered(b, 10000, 100000, 1)
+}
+func BenchmarkDistinctOrdered_100000_100000_1(b *testing.B) {
+	benchDistinctOrdered(b, 100000, 100000, 1)
+}
+func BenchmarkDistinctOrdered_1000000_100000_1(b *testing.B) {
+	benchDistinctOrdered(b, 1000000, 100000, 1)
 }
