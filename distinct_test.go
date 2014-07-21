@@ -248,6 +248,144 @@ func BenchmarkDistinctParallel_1000000_100000_1(b *testing.B) {
 	benchDistinctParallel(b, 1000000, 100000, 1)
 }
 
+// revised parallel distinct
+
+// distinctParallel takes two channels, one for input and one for
+// results, and only passes unique values to the results channel.
+// Once the input channel is closed and all values have been sent
+// to the results channel, the results channel is closed.  It also
+// takes n, the number of goroutines that are executed
+// concurrently.
+func distinctParallelRevised(in <-chan fooBar, res chan<- fooBar, n int) {
+
+	// We split the input into n goroutines by performing
+	// a modulo on the input tuples, and using that to
+	// determine which stripe to send the tuple to.
+	stripes := make([]chan fooBar, n)
+
+	// We have to wait for all goroutines to finish before
+	// closing the results channel.
+	var wg sync.WaitGroup
+	wg.Add(n)
+	go func() {
+		wg.Wait()
+		close(res)
+	}()
+
+	for i := 0; i < n; i++ {
+		stripes[i] = make(chan fooBar, 1)
+		go func(stripe <-chan fooBar) {
+			mem := make(map[fooBar]struct{})
+			// Read each input,
+			for v := range stripe {
+				// if it is has not already been
+				// encountered, make a new entry
+				// for it and send it to the
+				// result chan.
+				if _, dup := mem[v]; !dup {
+					mem[v] = struct{}{}
+					res <- v
+				}
+			}
+
+			// signal to WaitGroup that the goroutine
+			// has completed
+			wg.Done()
+		}(stripes[i])
+	}
+
+	// use modulo to send inputs to the appropriate
+	// channel
+	go func() {
+		for v := range in {
+			stripes[v.foo%n] <- v
+		}
+		// close intermediate channels
+		for i := 0; i < n; i++ {
+			close(stripes[i])
+		}
+	}()
+	return
+}
+
+// benchmarks
+func benchDistinctParallelRevised(b *testing.B, tupN, fooN, barN int) {
+	mc := runtime.GOMAXPROCS(2)
+	in := makeFooBar(tupN, fooN, barN)
+	b.StopTimer()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := make(chan fooBar, 1)
+
+		b.StartTimer()
+		distinctParallelRevised(fooBarChan(in, 1), res, 2)
+
+		emptyFooBar(res)
+		b.StopTimer()
+	}
+	runtime.GOMAXPROCS(mc)
+}
+
+// benchmarks for distinct with cardinality ~3
+func BenchmarkDistinctParallelRevised_10_3_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 10, 3, 1)
+}
+func BenchmarkDistinctParallelRevised_100_3_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 100, 3, 1)
+}
+func BenchmarkDistinctParallelRevised_1000_3_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 1000, 3, 1)
+}
+func BenchmarkDistinctParallelRevised_10000_3_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 10000, 3, 1)
+}
+func BenchmarkDistinctParallelRevised_100000_3_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 100000, 3, 1)
+}
+func BenchmarkDistinctParallelRevised_1000000_3_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 1000000, 3, 1)
+}
+
+// benchmarks for distinct with cardinality ~1000
+func BenchmarkDistinctParallelRevised_10_1000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 10, 1000, 1)
+}
+func BenchmarkDistinctParallelRevised_100_1000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 100, 1000, 1)
+}
+func BenchmarkDistinctParallelRevised_1000_1000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 1000, 1000, 1)
+}
+func BenchmarkDistinctParallelRevised_10000_1000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 10000, 1000, 1)
+}
+func BenchmarkDistinctParallelRevised_100000_1000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 100000, 1000, 1)
+}
+func BenchmarkDistinctParallelRevised_1000000_1000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 1000000, 1000, 1)
+}
+
+// benchmarks for distinct with cardinality ~100000
+func BenchmarkDistinctParallelRevised_10_100000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 10, 100000, 1)
+}
+func BenchmarkDistinctParallelRevised_100_100000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 100, 100000, 1)
+}
+func BenchmarkDistinctParallelRevised_1000_100000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 1000, 100000, 1)
+}
+func BenchmarkDistinctParallelRevised_10000_100000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 10000, 100000, 1)
+}
+func BenchmarkDistinctParallelRevised_100000_100000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 100000, 100000, 1)
+}
+func BenchmarkDistinctParallelRevised_1000000_100000_1(b *testing.B) {
+	benchDistinctParallelRevised(b, 1000000, 100000, 1)
+}
+
 // ordered version
 
 // distinctOrdered takes two channels, one for input and one for
