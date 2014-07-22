@@ -1,7 +1,11 @@
 package relpipes
 
-import "sync"
-
+import (
+	"runtime"
+	"sort"
+	"testing"
+	"sync"
+	)
 // a set of tests and benchmarks for group
 
 // note that if you are adapting this to your own use, you should probably
@@ -24,7 +28,7 @@ func proj(t *fooBar) subFooBar { return subFooBar{t.foo} }
 // a true if they belong to the same group, otherwise false.
 // It also takes n, which is the buffer size that should be
 // used for the inner result channels.
-func groupOrdered(in <-chan fooBar, res chan chan fooBar, p predicate, n int) {
+func groupOrdered(in <-chan fooBar, res chan (chan fooBar), p predicate, n int) {
 	go func() {
 
 		// initialization is a bit trickier here.
@@ -69,11 +73,99 @@ func groupOrdered(in <-chan fooBar, res chan chan fooBar, p predicate, n int) {
 	return
 }
 
+// ordered benchmarks
+
+func emptyFooBarGroup(ch chan (chan fooBar)) {
+	for inner := range ch {
+		for _ = range inner {
+			// do nothing, just recv
+		}
+	}
+}
+
+func benchGroupOrdered(b *testing.B, tupN, fooN, barN int) {
+	in := makeFooBar(tupN, fooN, barN)
+	sort.Sort(fooBarByBar(in))
+	b.StopTimer()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := make(chan (chan fooBar), 1)
+
+		b.StartTimer()
+		groupOrdered(fooBarChan(in, 1), res, p, 2)
+
+		emptyFooBarGroup(res)
+		b.StopTimer()
+	}
+}
+
+// benchmarks for group with cardinality ~3
+func BenchmarkGroupOrdered_10_3_1(b *testing.B) {
+	benchGroupOrdered(b, 10, 3, 1)
+}
+func BenchmarkGroupOrdered_100_3_1(b *testing.B) {
+	benchGroupOrdered(b, 100, 3, 1)
+}
+func BenchmarkGroupOrdered_1000_3_1(b *testing.B) {
+	benchGroupOrdered(b, 1000, 3, 1)
+}
+func BenchmarkGroupOrdered_10000_3_1(b *testing.B) {
+	benchGroupOrdered(b, 10000, 3, 1)
+}
+func BenchmarkGroupOrdered_100000_3_1(b *testing.B) {
+	benchGroupOrdered(b, 100000, 3, 1)
+}
+func BenchmarkGroupOrdered_1000000_3_1(b *testing.B) {
+	benchGroupOrdered(b, 1000000, 3, 1)
+}
+
+// benchmarks for group with cardinality ~1000
+func BenchmarkGroupOrdered_10_1000_1(b *testing.B) {
+	benchGroupOrdered(b, 10, 1000, 1)
+}
+func BenchmarkGroupOrdered_100_1000_1(b *testing.B) {
+	benchGroupOrdered(b, 100, 1000, 1)
+}
+func BenchmarkGroupOrdered_1000_1000_1(b *testing.B) {
+	benchGroupOrdered(b, 1000, 1000, 1)
+}
+func BenchmarkGroupOrdered_10000_1000_1(b *testing.B) {
+	benchGroupOrdered(b, 10000, 1000, 1)
+}
+func BenchmarkGroupOrdered_100000_1000_1(b *testing.B) {
+	benchGroupOrdered(b, 100000, 1000, 1)
+}
+func BenchmarkGroupOrdered_1000000_1000_1(b *testing.B) {
+	benchGroupOrdered(b, 1000000, 1000, 1)
+}
+
+// benchmarks for group with cardinality ~100000
+func BenchmarkGroupOrdered_10_100000_1(b *testing.B) {
+	benchGroupOrdered(b, 10, 100000, 1)
+}
+func BenchmarkGroupOrdered_100_100000_1(b *testing.B) {
+	benchGroupOrdered(b, 100, 100000, 1)
+}
+func BenchmarkGroupOrdered_1000_100000_1(b *testing.B) {
+	benchGroupOrdered(b, 1000, 100000, 1)
+}
+func BenchmarkGroupOrdered_10000_100000_1(b *testing.B) {
+	benchGroupOrdered(b, 10000, 100000, 1)
+}
+func BenchmarkGroupOrdered_100000_100000_1(b *testing.B) {
+	benchGroupOrdered(b, 100000, 100000, 1)
+}
+func BenchmarkGroupOrdered_1000000_100000_1(b *testing.B) {
+	benchGroupOrdered(b, 1000000, 100000, 1)
+}
+
+
+
 // groupUnordered takes two channels, one for input and one for
 // results, and passes tuples that belong to the same group
 // to the appropriate output channel. It also takes n, which is
 // the buffer size that should be used for the inner result channels.
-func groupUnordered(in <-chan fooBar, res chan chan fooBar, n int) {
+func groupUnordered(in <-chan fooBar, res chan (chan fooBar), n int) {
 
 	go func() {
 		m := make(map[subFooBar]chan fooBar)
@@ -107,7 +199,7 @@ func groupUnordered(in <-chan fooBar, res chan chan fooBar, n int) {
 
 // makeGroup handles an individual group.  It will never block on
 // a recv from groupChan
-func makeGroup(in chan fooBar, res chan chan fooBar, wg *sync.WaitGroup, n int) {
+func makeGroup(in chan fooBar, res chan (chan fooBar), wg *sync.WaitGroup, n int) {
 
 	groupChan := make(chan fooBar, n)
 	sendChan := groupChan
@@ -147,4 +239,84 @@ func makeGroup(in chan fooBar, res chan chan fooBar, wg *sync.WaitGroup, n int) 
 	}
 	wg.Done()
 	close(groupChan)
+}
+
+// benchmark
+
+func benchGroupUnordered(b *testing.B, tupN, fooN, barN int) {
+	mc := runtime.GOMAXPROCS(2)
+	in := makeFooBar(tupN, fooN, barN)
+	b.StopTimer()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := make(chan (chan fooBar), 1)
+
+		b.StartTimer()
+		groupUnordered(fooBarChan(in, 1), res, 2)
+
+		emptyFooBarGroup(res)
+		b.StopTimer()
+	}
+	runtime.GOMAXPROCS(mc)
+
+}
+
+// benchmarks for group with cardinality ~3
+func BenchmarkGroupUnordered_10_3_1(b *testing.B) {
+	benchGroupUnordered(b, 10, 3, 1)
+}
+func BenchmarkGroupUnordered_100_3_1(b *testing.B) {
+	benchGroupUnordered(b, 100, 3, 1)
+}
+func BenchmarkGroupUnordered_1000_3_1(b *testing.B) {
+	benchGroupUnordered(b, 1000, 3, 1)
+}
+func BenchmarkGroupUnordered_10000_3_1(b *testing.B) {
+	benchGroupUnordered(b, 10000, 3, 1)
+}
+func BenchmarkGroupUnordered_100000_3_1(b *testing.B) {
+	benchGroupUnordered(b, 100000, 3, 1)
+}
+func BenchmarkGroupUnordered_1000000_3_1(b *testing.B) {
+	benchGroupUnordered(b, 1000000, 3, 1)
+}
+
+// benchmarks for group with cardinality ~1000
+func BenchmarkGroupUnordered_10_1000_1(b *testing.B) {
+	benchGroupUnordered(b, 10, 1000, 1)
+}
+func BenchmarkGroupUnordered_100_1000_1(b *testing.B) {
+	benchGroupUnordered(b, 100, 1000, 1)
+}
+func BenchmarkGroupUnordered_1000_1000_1(b *testing.B) {
+	benchGroupUnordered(b, 1000, 1000, 1)
+}
+func BenchmarkGroupUnordered_10000_1000_1(b *testing.B) {
+	benchGroupUnordered(b, 10000, 1000, 1)
+}
+func BenchmarkGroupUnordered_100000_1000_1(b *testing.B) {
+	benchGroupUnordered(b, 100000, 1000, 1)
+}
+func BenchmarkGroupUnordered_1000000_1000_1(b *testing.B) {
+	benchGroupUnordered(b, 1000000, 1000, 1)
+}
+
+// benchmarks for group with cardinality ~100000
+func BenchmarkGroupUnordered_10_100000_1(b *testing.B) {
+	benchGroupUnordered(b, 10, 100000, 1)
+}
+func BenchmarkGroupUnordered_100_100000_1(b *testing.B) {
+	benchGroupUnordered(b, 100, 100000, 1)
+}
+func BenchmarkGroupUnordered_1000_100000_1(b *testing.B) {
+	benchGroupUnordered(b, 1000, 100000, 1)
+}
+func BenchmarkGroupUnordered_10000_100000_1(b *testing.B) {
+	benchGroupUnordered(b, 10000, 100000, 1)
+}
+func BenchmarkGroupUnordered_100000_100000_1(b *testing.B) {
+	benchGroupUnordered(b, 100000, 100000, 1)
+}
+func BenchmarkGroupUnordered_1000000_100000_1(b *testing.B) {
+	benchGroupUnordered(b, 1000000, 100000, 1)
 }
